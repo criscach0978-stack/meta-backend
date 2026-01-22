@@ -1,47 +1,44 @@
+import os
+import requests
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import requests
 
 app = Flask(__name__)
 CORS(app)
 
 @app.route('/')
 def home():
-    return "✅ Conector Meta-Blackbox v2 Activo"
+    return "✅ Conector Blackbox Real-Time Activo"
 
 @app.route('/launch-campaign', methods=['POST', 'OPTIONS'])
 def launch():
-    if request.method == 'OPTIONS': 
-        return '', 200
-    
+    if request.method == 'OPTIONS': return '', 200
     try:
         data = request.get_json()
         token = data.get('accessToken')
-        acc_id = data.get('adAccountId')
+        acc = data.get('adAccountId') # Asegúrate que sea 'act_...'
+        page = data.get('pageId')
         
-        # Intentar crear la campaña en Meta
-        response = requests.post(
-            f"https://graph.facebook.com/v18.0/{acc_id}/campaigns",
+        # 1. Crear Campaña
+        c_res = requests.post(f"https://graph.facebook.com/v18.0/{acc}/campaigns", 
+            params={'access_token': token, 'name': 'Blackbox: ' + data.get('adTitle', 'Venta'), 'objective': 'OUTCOME_TRAFFIC', 'status': 'PAUSED'}).json()
+        
+        if 'error' in c_res: return jsonify({"status": "meta_error", "message": c_res['error']['message']}), 400
+        c_id = c_res['id']
+
+        # 2. Crear Conjunto (AdSet) - OBLIGATORIO para visibilidad
+        as_res = requests.post(f"https://graph.facebook.com/v18.0/{acc}/adsets",
             params={
                 'access_token': token,
-                'name': 'Blackbox: ' + data.get('adTitle', 'Test'),
-                'objective': 'OUTCOME_TRAFFIC',
+                'name': 'Conjunto Blackbox',
+                'campaign_id': c_id,
+                'daily_budget': 5000, # 5 USD aprox
+                'billing_event': 'IMPRESSIONS',
+                'optimization_goal': 'REACH',
+                'targeting': {'geo_locations': {'countries': ['CO']}, 'publisher_platforms': ['facebook', 'instagram']},
                 'status': 'PAUSED'
-            }
-        )
-        
-        meta_data = response.json()
-        
-        # Si Meta responde con error, lo enviamos de vuelta para leerlo
-        if 'error' in meta_data:
-            return jsonify({
-                "status": "meta_error",
-                "message": meta_data['error']['message'],
-                "code": meta_data['error'].get('code'),
-                "error_subcode": meta_data['error'].get('error_subcode')
-            }), 400
+            }).json()
 
-        return jsonify({"status": "success", "id": meta_data.get('id')})
-        
+        return jsonify({"status": "success", "campaign_id": c_id, "message": "¡Ya debería ser visible en Facebook!"})
     except Exception as e:
-        return jsonify({"status": "server_error", "message": str(e)}), 500
+        return jsonify({"error": str(e)}), 500
