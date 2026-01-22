@@ -1,7 +1,7 @@
-import os
-import requests
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+import requests
+import json
 
 app = Flask(__name__)
 CORS(app)
@@ -25,15 +25,13 @@ def launch():
         
         meta_data = res.json()
         
-        # SI HAY ERROR, LO MOSTRAMOS TODO
         if 'error' in meta_data:
-            print(f"❌ DETALLE DEL ERROR DE META: {meta_data['error']}")
-            return jsonify({
-                "status": "meta_error",
-                "message": meta_data['error']['message'],
-                "full_error": meta_data['error']
-            }), 400
+            # ✅ ESTO FORZARÁ EL ERROR EN LOS LOGS QUE ME ENVIASTE
+            print(f"--- ERROR DE META DETECTADO ---")
+            print(json.dumps(meta_data['error'], indent=2)) 
+            return jsonify({"status": "meta_error", "message": meta_data['error']['message']}), 400
 
         return jsonify({"status": "success", "id": meta_data.get('id')})
     except Exception as e:
+        print(f"❌ Error interno: {str(e)}")
         return jsonify({"error": str(e)}), 500
