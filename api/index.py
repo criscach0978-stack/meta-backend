@@ -6,10 +6,10 @@ import os
 app = Flask(__name__)
 CORS(app)
 
-# Ruta para que Vercel confirme que el servidor está vivo
+# ✅ Esta ruta evita que la página diga "Crashed" al visitarla
 @app.route('/')
 def home():
-    return "Blackbox Backend Online ✅"
+    return "✅ El servidor de Blackbox está activo y funcionando."
 
 @app.route('/launch-campaign', methods=['POST', 'OPTIONS'])
 def launch():
